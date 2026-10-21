@@ -22,6 +22,7 @@ html,body{margin:0;height:100%;background:var(--bg);overflow:hidden;touch-action
 .ovl{position:fixed;z-index:30;pointer-events:none;display:none;box-sizing:border-box;font:800 16px ui-monospace,Menlo,Consolas,monospace;color:#39ff14;-webkit-user-select:none;user-select:none}
 body.ed .ovl{pointer-events:auto;outline:2px dashed var(--ac);cursor:move;touch-action:none}
 #fps{padding:3px 8px;border-radius:8px;font-variant-numeric:tabular-nums}
+#netping{position:fixed;z-index:6;top:calc(env(safe-area-inset-top,0px) + 58px);right:10px;padding:4px 8px;border-radius:8px;background:#0009;color:#fff;font:700 12px system-ui;font-variant-numeric:tabular-nums;display:none;pointer-events:none}
 #tmr{padding:6px 16px;border-radius:14px;text-align:center;white-space:nowrap}
 #tv{display:block;font-variant-numeric:tabular-nums;letter-spacing:1px;text-shadow:0 0 10px #39ff14aa}
 #tg{display:block;font:700 10px system-ui;letter-spacing:.5px;opacity:.9}
@@ -31,7 +32,7 @@ body.ed .ovl{pointer-events:auto;outline:2px dashed var(--ac);cursor:move;touch-
 .sl div{display:flex;justify-content:space-between}.sl input{width:100%;margin:2px 0 8px;accent-color:#ffd23f;touch-action:pan-y}
 </style>
 <div id="hud"><span><span id="sc">0</span><small id="sd" style="display:block;font-size:12px;opacity:.9"></small></span><span id="pu" style="font-size:16px"></span><span><span id="co">🪙 0</span><button id="hbb">🛹</button><button id="pb">⏸</button></span></div>
-<div id="al"></div><div id="ov"><h1 id="t">METRÔ RUNNER 3D</h1><p id="m">Deslize ← → para trocar de pista<br>↑ pular · ↓ rolar · pegue o ímã 🧲<br>Teclado: setas/WASD · Esc pausa</p><b id="bt">JOGAR</b><div id="mn"><button id="b1">👤 PERSONAGENS</button><button id="b2">⚙️ CONFIG.</button><button id="b3">🌦️ CENÁRIO</button><button id="b4">🏆 RANKING</button><button id="b5">🎮 MODOS</button><button id="b6">📋 MISSÕES</button><button id="b7">🌐 MULTIPLAYER</button></div><div id="pn"></div></div>
+<div id="al"></div><div id="netping" aria-live="polite">📶 medindo…</div><div id="ov"><h1 id="t">METRÔ RUNNER 3D</h1><p id="m">Deslize ← → para trocar de pista<br>↑ pular · ↓ rolar · pegue o ímã 🧲<br>Teclado: setas/WASD · Esc pausa</p><b id="bt">JOGAR</b><div id="mn"><button id="b1">👤 PERSONAGENS</button><button id="b2">⚙️ CONFIG.</button><button id="b3">🌦️ CENÁRIO</button><button id="b4">🏆 RANKING</button><button id="b5">🎮 MODOS</button><button id="b6">📋 MISSÕES</button><button id="b7">🌐 MULTIPLAYER</button></div><div id="pn"></div></div>
 <div id="wasd"><i data-k="w">W</i><i data-k="a">A</i><i data-k="s">S</i><i data-k="d">D</i></div>
 <div id="fps" class="ovl">-- FPS</div><div id="tmr" class="ovl s0"><span id="tv">00:00.00</span><small id="tg"></small></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -400,7 +401,7 @@ let roomDb=null,roomUid='',roomAuthReady=false,roomAuthError='';
 function mpRoomConfigured(){return !!(window.firebase&&FIREBASE_CONFIG.apiKey&&FIREBASE_CONFIG.authDomain&&FIREBASE_CONFIG.databaseURL&&FIREBASE_CONFIG.projectId&&FIREBASE_CONFIG.appId)}
 function mpRoomInit(){if(!mpRoomConfigured()){roomAuthError='';return}try{if(!firebase.apps.length)firebase.initializeApp(FIREBASE_CONFIG);roomDb=firebase.database();firebase.auth().signInAnonymously().then(x=>{roomUid=x.user.uid;roomAuthReady=true;roomAuthError='';if(NET.host&&NET.code)roomDb.ref('rooms/'+NET.code).onDisconnect().remove().catch(()=>{});if(NET.host&&NET.code)mpRoomSave();mpUI()}).catch(e=>{roomAuthError='Não consegui autenticar no Firebase. Confira se o login anônimo está ativado.';mpUI()})}catch(e){roomAuthError='Configuração do Firebase inválida.'}}
 mpRoomInit();
-const NET={rm:0,host:0,id:'',code:'',P:{},peer:null,cn:{},st:'off',race:0,t0:0,msg:'',showRooms:0,rooms:{},roomsError:'',roomsBusy:0},COLS=[0xff4d6d,0x3a86ff,0x06d6a0,0xffd60a,0xaa00ff,0xff6d00],AL='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',_mr=Math.random;
+const NET={rm:0,host:0,id:'',code:'',P:{},peer:null,cn:{},st:'off',race:0,t0:0,msg:'',showRooms:0,rooms:{},roomsError:'',roomsBusy:0,ping:0},COLS=[0xff4d6d,0x3a86ff,0x06d6a0,0xffd60a,0xaa00ff,0xff6d00],AL='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',_mr=Math.random;
 async function mpRoomSave(){if(!NET.host||!NET.code||!roomDb||!roomUid)return;const me=NET.P[NET.id];if(!me)return;const data={code:NET.code,name:String(me.n||'Jogador').slice(0,14),players:Object.keys(NET.P).length,max:6,state:NET.race?'playing':'waiting',updatedAt:firebase.database.ServerValue.TIMESTAMP,owner:roomUid};try{await roomDb.ref('rooms/'+NET.code).set(data)}catch(e){NET.roomsError='Não foi possível publicar a sala no diretório.'}}
 async function mpRoomRemove(code){if(!roomDb||!roomUid||!code)return;try{const r=roomDb.ref('rooms/'+code);const snap=await r.once('value');if(snap.exists()&&snap.val().owner===roomUid)await r.remove()}catch(e){}}
 async function mpRoomsLoad(){if(!NET.showRooms||NET.roomsBusy)return;if(!mpRoomConfigured()){NET.roomsError='Para listar salas, falta configurar o Firebase neste HTML.';NET.rooms={};mpUI();return}if(!roomAuthReady||!roomDb){NET.roomsError=roomAuthError||'Conectando ao diretório de salas…';mpUI();return}NET.roomsBusy=1;try{const snap=await roomDb.ref('rooms').once('value'),raw=snap.val()||{},now=Date.now(),rooms={};for(const k in raw){const q=raw[k];if(q&&q.code===k&&now-(+q.updatedAt||0)<35000&&q.owner&&q.state)rooms[k]=q}NET.rooms=rooms;NET.roomsError=''}catch(e){NET.roomsError='Não consegui carregar as salas. Confira a configuração e as regras do Firebase.';NET.rooms={}}finally{NET.roomsBusy=0;mpUI()}}
@@ -414,7 +415,7 @@ function ava(p){const g=new T.Group(),b=new T.Group(),o={transparent:true,opacit
  g.l=[-1,1].map(s=>{const j=new T.Group();j.position.set(s*.14,0,0);b.add(j);B(.17,.9,.2,dk,0,-.45,0,j);return j});
  g.a=[-1,1].map(s=>{const j=new T.Group();j.position.set(s*.36,.5,0);b.add(j);B(.12,.6,.12,sk,0,-.3,0,j);return j});
  g.add(lbl(p.n,p.col));S.add(g);return g}
-function mpUpd(dt){if(!NET.race)return;for(const id in NET.P){const p=NET.P[id];if(id==NET.id||!p.g)continue;
+function mpUpd(dt){if(!NET.race){$('netping').style.display='none';return}$('netping').style.display='block';const pings=Object.values(NET.P).map(q=>q.ping||0).filter(q=>q>0);const shown=NET.host?(pings.length?Math.max(...pings):0):NET.ping;$('netping').textContent=shown?'📶 '+shown+' ms':'📶 medindo…';for(const id in NET.P){const p=NET.P[id];if(id==NET.id||!p.g)continue;
  if(p.al)p.td+=p.sp*dt;p.d+=(p.td-p.d)*Math.min(1,dt*10);const q=p.d-dist,g=p.g,k=Math.min(1,dt*14);g.visible=Math.abs(q)<75;p.x+=(p.tx-p.x)*k;p.y+=(p.ty-p.y)*k;g.position.set(p.x,.9+p.y,-q);
  const w=p.al?Math.sin(tm*(9+p.sp*.3)):0,air=p.y>.1;g.l[0].rotation.x=air?.5:w*.95;g.l[1].rotation.x=air?-.4:-w*.95;g.a[0].rotation.x=air?-1.2:-w*.9;g.a[1].rotation.x=air?-1.2:w*.9;g.b.rotation.x=!p.al?-1.4:p.r?-tm*16:-.18}}
 const mpN=()=>(sv.name||nm(sv.ch)).slice(0,14),mpS=(c,m)=>{try{c.send(m)}catch(e){}},mpAll=(m,ex)=>{for(const k in NET.cn)if(k!=ex&&k!='h')mpS(NET.cn[k],m)},mpTo=m=>{if(NET.host)mpAll(m);else if(NET.cn.h)mpS(NET.cn.h,m)};
@@ -427,6 +428,8 @@ function mpMsg(f,m){const P=NET.P;if(!m||!m.t)return;
  else if(m.t=='lob'&&!NET.host){const n={};for(const q of m.l){const o=P[q.id]||{al:1,s:0,d:0,c:0,td:0,sp:0,x:0,tx:0,y:0,ty:0,r:0};n[q.id]=Object.assign(o,{n:q.n,ch:q.ch,i:q.i,rd:q.rd,host:q.h,col:COLS[q.i%6]})}for(const id in P)if(!n[id]&&P[id].g)S.remove(P[id].g);NET.P=n;mpUI()}
  else if(m.t=='rdy'&&NET.host&&P[f]&&!NET.race){P[f].rd=m.v?1:0;mpLob();mpChk()}
  else if(m.t=='start'&&!NET.host)mpStart(m)
+ else if(m.t=='ping'){if(NET.host){if(NET.cn[f])mpS(NET.cn[f],{t:'pong',ts:m.ts})}else if(NET.cn.h)mpS(NET.cn.h,{t:'pong',ts:m.ts})}
+ else if(m.t=='pong'){const rtt=Math.max(0,Math.round(performance.now()-(+m.ts||performance.now())));if(NET.host&&P[f])P[f].ping=rtt;else NET.ping=rtt}
  else if(m.t=='st'){if(NET.host){const p=P[f];if(!p||!NET.race||!p.al)return;mpCl(p,m);p.seen=performance.now();mpSt(p,m);mpAll({t:'st',id:f,x:m.x,y:m.y,d:m.d,sp:m.sp,r:m.r,s:m.s,c:m.c},f)}else if(P[m.id]&&m.id!=NET.id)mpSt(P[m.id],m)}
  else if(m.t=='dead'){if(NET.host){const p=P[f];if(!p||!p.al)return;mpCl(p,m);mpKill(f,m.s,m.d,m.c,0);mpEnd()}else if(P[m.id])mpKill(m.id,m.s,m.d,m.c,m.dc)}
  else if(m.t=='res'&&!NET.host)mpRes(m.l)}
@@ -466,7 +469,8 @@ $('pn').addEventListener('click',e=>{const b=e.target.closest('[data-m]');if(!b)
  if(k=='q')mpQuick(1);else if(k=='h')mpHost();else if(k=='j')mpJoin($('mc').value);else if(k=='list'){NET.showRooms=NET.showRooms?0:1;if(NET.showRooms)mpRoomsLoad();else mpUI()}else if(k=='jr')mpJoin(b.dataset.code);else if(k=='l'){mpLeave();mpUI()}
  else if(k=='r'){const me=NET.P[NET.id];if(!me)return;me.rd=me.rd?0:1;if(NET.host){mpLob();mpChk()}else mpS(NET.cn.h,{t:'rdy',v:me.rd});mpUI()}},true);
 $('b7').onclick=()=>{beep(500,.06);pnl('mp')};addEventListener('pagehide',()=>mpLeave(1));
-setInterval(()=>{if(!NET.race||st!='play')return;const me=NET.P[NET.id];if(!me)return;me.s=score();me.d=dist;me.c=coins;mpTo({t:'st',id:NET.id,x:+px.toFixed(2),y:+y.toFixed(2),d:+dist.toFixed(1),sp:+spd.toFixed(1),r:roll>0?1:0,s:me.s,c:coins})},66);
+setInterval(()=>{if(!NET.race||st!='play')return;const me=NET.P[NET.id];if(!me)return;me.s=score();me.d=dist;me.c=coins;mpTo({t:'st',id:NET.id,x:+px.toFixed(2),y:+y.toFixed(2),d:+dist.toFixed(1),sp:+spd.toFixed(1),r:roll>0?1:0,s:me.s,c:coins})},50);
+setInterval(()=>{if(!NET.race)return;const ts=performance.now();if(NET.host){for(const id in NET.cn)if(id!=='h')mpS(NET.cn[id],{t:'ping',ts})}else if(NET.cn.h)mpS(NET.cn.h,{t:'ping',ts})},2000);
 setInterval(()=>{if(NET.host&&NET.code&&roomDb&&roomUid)mpRoomSave();if(st=='menu'&&$('pn').dataset.w=='mp'&&NET.showRooms&&!NET.roomsBusy)mpRoomsLoad()},12000);
 setInterval(()=>{if(!NET.race){return}const a=Object.values(NET.P).sort((x,y)=>(y.s|0)-(x.s|0));rkE.style.display='block';rkE.innerHTML=a.map((q,i)=>'<div style="color:'+hx(q.col)+';'+(q.al?'':'opacity:.55;text-decoration:line-through')+'">'+(i+1)+'. '+esc(q.n)+' '+(q.s|0)+(q.dc?' 🔌':'')+'</div>').join('');
  if(NET.host&&st=='play')for(const id in NET.P){const p=NET.P[id];if(id!=NET.id&&p.al&&performance.now()-Math.max(p.seen||0,NET.t0)>8000){mpKill(id,p.s,p.td,p.c,1);mpEnd()}}},250);
